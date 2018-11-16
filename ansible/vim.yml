@@ -1,0 +1,34 @@
+#sudo apt-get update && sudo apt-get install software-properties-common &&  sudo apt-add-repository --yes --update ppa:ansible/ansible && sudo apt-get install ansible -y && sudo apt-get upgrade -y 
+#export ANSIBLE_HOST_KEY_CHECKING=False &&  ansible-playbook ubuntu_18.yml --ask-become-pass
+
+#realted to hardening new instance or pod 
+
+- hosts: 127.0.0.1                                                                                                                                                                                                    
+  become: yes
+  vars_files: ['credentials.yml']  
+  tasks:                                                                                                                                                                                                                  
+  # install basic ops tools                                                                                                                                                                                        
+    - name: install ops tools                                                                                                                                                                                      
+      apt:                                                                                                                                                                                                         
+        name: ['neovim', 'python-pip','python3-pip', 'whois', 'ncdu', 'ack-grep', 'htop', 'tree', 'traceroute', 'netdata', 'git']                                                                                                                                                                 
+        state: latest
+
+    - name: install vimrc
+      git:
+        repo: https://github.com/ccggeo/vim.git
+        dest: /home/"{{user}}"/.vim
+
+    - name: copy vimrc
+      command: mv /home/"{{user}}"/.vim/vimrc /home/ansible-user/.vimrc 
+
+    - name: install vundle
+      git:
+        repo: https://github.com/gmarik/Vundle.vim.git
+        dest: /home/"{{user}}"/.vim/bundle/Vundle.vim
+
+    - name: Permissions stuff
+      command: chown -R ansible-user:sudo /home/ansible-user/.vim
+
+    - name: Vundle Plugins
+      command: vim +PluginInstall +qall
+

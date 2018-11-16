@@ -1,0 +1,86 @@
+#sudo apt-get update && sudo apt-get install software-properties-common &&  sudo apt-add-repository --yes --update ppa:ansible/ansible && sudo apt-get install ansible -y && sudo apt-get upgrade -y 
+#export ANSIBLE_HOST_KEY_CHECKING=False &&  ansible-playbook ubuntu_18.yml --ask-become-pass
+
+#realted to hardening new instance or pod 
+
+- hosts: 127.0.0.1                                                                                                                                                                                                    
+  become: yes
+  vars_files: ['credentials.yml']  
+  tasks:                                                                                                                                                                                                                  
+  # install basic ops tools                                                                                                                                                                                        
+    
+    - name: install ops tools                                                                                                                                                                                      
+      apt:                                                                                                                                                                                                         
+        name: [ 'fail2ban', 'neovim', 'python-pip','python3-pip', 'whois', 'ncdu', 'ack-grep', 'htop', 'tree', 'traceroute', 'netdata', 'git']                                                                                                                                                                 
+        state: latest
+    # security phase
+    - name: add new sudo user                                                                                                                                                                                   
+      user:                                                                                                                                                                                                         
+        name: "{{user}}"
+        shell: /bin/bash
+        group: sudo
+        append: yes
+        password: "{{pass}}"
+        #mkpasswd --method=sha-512
+      
+    - name: set authorized keys                                                                                                                                                                                   
+      authorized_key:                                                                                                                                                                                                         
+        user: "{{user}}"
+        state: present
+        key: https://github.com/ccggeo.keys
+
+    # ssh lockdown                                                                                                                                                                                                               
+    - name: Disable empty password login                                                                                                                                                                         
+      lineinfile: 
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitEmptyPasswords' 
+        line: "PermitEmptyPasswords no"
+
+    - name: Disable password login                                                                                                                                                                         
+      lineinfile: 
+        path: /etc/ssh/sshd_config
+        regexp: '^(#\s*)?PasswordAuthentication ' 
+        line: "PasswordAuthentication no"
+
+    - name: Disable remote root login                                                                                                                                                                         
+      lineinfile: 
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitRootLogin' 
+        line: "PermitRootLogin no"
+
+    - name: change ssh port                                                                                                                                                                      
+      lineinfile: 
+        path: /etc/ssh/sshd_config
+        regexp: '^#?Port' 
+        line: 'Port {{port}}'
+
+    - name: restart sshd service
+      command: service ssh restart 
+   
+
+    - name: create fail to ban local files
+      command: cp /etc/fail2ban/fail2ban.conf /etc/fail2ban/fail2ban.local 
+
+    - name: create fail to ban local files
+      command: cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+ 
+
+      # personal config 
+    - name: install vimrc
+      git:
+        repo: https://github.com/ccggeo/vim.git
+        dest: /home/"{{user}}"/.vim
+
+    - name: copy vimrc
+      command: mv /home/"{{user}}"/.vim/vimrc /home/ansible-user/.vimrc 
+
+    - name: install vundle
+      git:
+        repo: https://github.com/gmarik/Vundle.vim.git
+        dest: /home/"{{user}}"/.vim/bundle/Vundle.vim
+
+    - name: Permissions stuff
+      command: chown -R ansible-user:sudo /home/ansible-user/.vim
+
+    - name: Vundle Plugins
+      command: vim +PluginInstall +qall
